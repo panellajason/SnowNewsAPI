@@ -54,6 +54,7 @@ app.get('/allnews', (req, res) => {
                         title, url: newspaper.base + url, source: newspaper.name
                     })
                 })
+
             } else if(newspaper.name == 'Powder Chasers') {
         
                 $('article').each( function() {
@@ -65,18 +66,73 @@ app.get('/allnews', (req, res) => {
                     })
                 })
             } else if(newspaper.name == 'Open Snow') {
-    
-                $('.link').each(function() {
+
+                $('a').each(function() {
                     url = $(this).attr('href').toString()
-                    if (url.includes("mammoth") || (url.includes("tahoe") && !(url.includes("palisades"))) || url.includes("southerncalifornia")) {
-                        title = $(this).parent().find('.name').text() 
-                        $(this).parent().find('.author').remove();
-                        date = $(this).parent().find('.time').text().trim()
+
+                    if (url.includes("mammoth")) {
+                        title = 'Mammoth'
+                        description = $(this).children().find('h3').text().replace('\n', '').trim()
+                        if (description != '') {
+                            title = title + ': ' + description
+                        }
+
+                        $(this).children().find('span').each(function() {
+                            if ($(this).text().includes('hours')) {
+                                timeAgo = $(this).text().replace('\n', '').trim()
+                                if (timeAgo != '') {
+                                    title = title + ' (' + timeAgo + ')'
+                                }
+                            }
+                        })
+
                         articles.push({
-                            title: title + ' (' + date + ')', url: newspaper.base + url, source: newspaper.name
+                            title: title, url: url, source: newspaper.name
                         }) 
                     }
-                })     
+
+                    if (url.includes("tahoe") && !(url.includes("palisades"))) {
+                        title = 'Tahoe'
+                        description = $(this).children().find('h3').text().replace('\n', '').trim()
+                        if (description != '') {
+                            title = title + ': ' + description
+                        }
+
+                        $(this).children().find('span').each(function() {
+                            if ($(this).text().includes('hours')) {
+                                timeAgo = $(this).text().replace('\n', '').trim()
+                                if (timeAgo != '') {
+                                    title = title + ' (' + timeAgo + ')'
+                                }
+                            }
+                        })
+
+                        articles.push({
+                            title: title, url: url, source: newspaper.name
+                        }) 
+                    }
+
+                    if (url.includes("southerncalifornia")) {
+                        title = 'Southern California'
+                        description = $(this).children().find('h3').text().replace('\n', '').trim()
+                        if (description != '') {
+                            title = title + ': ' + description
+                        }
+
+                        $(this).children().find('span').each(function() {
+                            if ($(this).text().includes('hours')) {
+                                timeAgo = $(this).text().replace('\n', '').trim()
+                                if (timeAgo != '') {
+                                    title = title + ' (' + timeAgo + ')'
+                                }
+                            }
+                        })
+
+                        articles.push({
+                            title: title, url: url, source: newspaper.name
+                        }) 
+                    }
+                })    
             }
 
             if (i === websites.length) {
