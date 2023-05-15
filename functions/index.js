@@ -4,47 +4,25 @@ const axios = require('axios')
 const cheerio = require('cheerio')
 
 const app = express()
-const articles = []
 const resorts = []
 
-// News Sources
-const websites = [
-    {
-        name: 'Open Snow',
-        address: 'https://opensnow.com/dailysnow',
-        base: 'https://opensnow.com'
-    },
-    {
-        name: 'Snow Brains',
-        address: 'https://snowbrains.com/category/weather',
-        base: ''
-    }, 
-    {
-        name: 'Powder Chasers',
-        address: 'https://powderchasers.com/forecasts',
-        base: 'https://powderchasers.com'
-    }
-]
-
-// Gets attributes for open snow articles
-function getAttrsAndPushOpenSnowArticle($, cheerioElement, newspaper) {
-    description = cheerioElement.children().find('h3').text().replace('\n', '').trim()
-    if (description != '') {
+// Get attributes for open snow articles
+function getAttrsAndPushOpenSnowArticle($, cheerioElement, title) {
+    const description = cheerioElement.children().find('h3').text().replace('\n', '').trim();
+    if (description !== '') {
         title = title + ': ' + description
     }
 
     cheerioElement.children().find('span').each(function() {
-        let spanText = $(this).text()
+        const spanText = $(this).text()
         if (spanText.includes('hour') || spanText.includes('minute') || spanText.includes('day') || spanText.includes('week')) {
-            timeAgo = spanText.replace('\n', '').trim()
+            const timeAgo = spanText.replace('\n', '').trim()
             title = title + ' (' + timeAgo + ')'
         }
     })
 
-    articles.push({
-        title: title, url: url, source: newspaper.name
-    }) 
-  } 
+    return title;
+}
 
 // Gets forecast for resorts
 function getResortsForecast($, cheerioElement) {
@@ -54,85 +32,84 @@ function getResortsForecast($, cheerioElement) {
 
     resorts.push({
         resort, fiveDaySnowTotal, url: 'https://opensnow.com' + url
-    })      
-} 
+    })
+}
 
-//Home Page
+// Home Page
 app.get('/', (req, res) => {
     res.json("Welcome to snow news")
 })
 
-//All News
+// All News
 app.get('/allnews', (req, res) => {
-    let i = 0
+    const articles = []
 
-    websites.forEach(newspaper => {
-        axios.get(newspaper.address).then((websiteResponse) => {
-            const html = websiteResponse.data
-            const $ = cheerio.load(html)
-            title = ''
-            url = ''
-            i++
-
-            if(newspaper.name == 'Snow Brains') {
-                $('article').each( function() {
-                    title = $(this).find('h2').text().trim()
-                    url = $(this).find('a').attr('href')
+    // Open Snow
+    axios.get('https://opensnow.com/dailysnow')
+        .then(response => {
+            const html = response.data;
+            const $ = cheerio.load(html);
+            $('a').each(function() {
+                const url = $(this).attr('href').toString()
+                if (url.includes("mammoth")) {
+                    const title = getAttrsAndPushOpenSnowArticle($, $(this), "Mammoth")
                     articles.push({
-                        title, url: newspaper.base + url, source: newspaper.name
+                        title, url, source: "Open Snow"
+                    })
+                }
+                if (url.includes("tahoe") && !(url.includes("palisades"))) {
+                    const title = getAttrsAndPushOpenSnowArticle($, $(this), "Tahoe")
+                    articles.push({
+                        title, url, source: "Open Snow"
+                    })
+                }
+                if (url.includes("southerncalifornia")) {
+                    const title = getAttrsAndPushOpenSnowArticle($, $(this), "Southern California")
+                    articles.push({
+                        title, url, source: "Open Snow"
+                    })
+                }
+            })
+        }).catch(error => {
+        console.log(error);
+        res.json(articles)
+    }).then(() => {
+        // Snow Brains
+        axios.get('https://snowbrains.com/category/weather')
+            .then(response => {
+                const html = response.data;
+                const $ = cheerio.load(html);
+
+                $('article').each( function() {
+                    const title = $(this).find('h2').text().trim()
+                    const url = $(this).find('a').attr('href')
+                    articles.push({
+                        title, url, source: "Snow Brains"
                     })
                 })
-            } else if(newspaper.name == 'Powder Chasers') {
-                $('article').each( function() {
-                    title = $(this).find('b').text().trim()
-                    url = $(this).children('a').attr('href')
-                    articles.push({
-                        title, url: newspaper.base + url, source: newspaper.name
-                    })
-                })
-            } else if(newspaper.name == 'Open Snow') {
-                $('a').each(function() {
-                    url = $(this).attr('href').toString()
-
-                    if (url.includes("mammoth")) {
-                        title = 'Mammoth'  
-                        getAttrsAndPushOpenSnowArticle($, $(this), newspaper)
-                    }
-
-                    if (url.includes("tahoe") && !(url.includes("palisades"))) {
-                        title = 'Tahoe'
-                        getAttrsAndPushOpenSnowArticle($, $(this), newspaper)
-                    }
-
-                    if (url.includes("southerncalifornia")) {
-                        title = 'Southern California'
-                        getAttrsAndPushOpenSnowArticle($, $(this), newspaper)
-                    }
-                })    
-            }
-
-            if (i === websites.length) {
                 res.json(articles)
-            }
-        })
+            }).catch(error => {
+            console.log(error);
+            res.json(articles)
+        });
     })
 })
 
 //5 day Snowfall Forecast
 app.get('/forecast', (req, res) => {
-
     axios.get('https://opensnow.com/dailysnow/southerncalifornia').then((websiteResponse) => {
         const html = websiteResponse.data
         const $ = cheerio.load(html)
+
         $('.resort').each(function() {
-            getResortsForecast($, $(this))     
+            getResortsForecast($, $(this))
         })
 
         axios.get('https://opensnow.com/dailysnow/mammoth').then((websiteResponse) => {
             const html = websiteResponse.data
             const $ = cheerio.load(html)
             $('.resort').each(function() {
-                getResortsForecast($, $(this))          
+                getResortsForecast($, $(this))
             })
 
             res.json(resorts)
